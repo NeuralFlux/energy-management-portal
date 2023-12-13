@@ -4,23 +4,22 @@
 
 <div class="container mt-4">
   <div class="page-header">
-    <h1>Service Locations</h1>
+    <h1>Devices at {{ location.unit, location.address, location.zcode }}</h1>
   </div>
 
-  {% if locations %}
+  {% if devices %}
     <div class="list-group">
-      {% for location in locations %}
+      {% for device in devices %}
         <div class="list-group-item">
-          <h5 class="mb-1">Location: {{ location.unit }}, {{ location.address }}</h5>
-          <p class="mb-1">Billed since: {{ location.billing_begin_date }}</p>
-          <p class="mb-1"><a href="{{ url_for('location_devices', lid=location.lid) }}">View Devices</a></p>
+          <h5 class="mb-1">Name: {{ device.D.dev_name }}</h5>
+          <p class="mb-1">Model: {{ device.AM.type }} {{ device.AM.model_num }}</p>
           <!-- Include other location details here if needed -->
         </div>
       {% endfor %}
     </div>
   {% else %}
     <div class="alert alert-info" role="alert">
-      No service locations found.
+      No devices found at {{ location.unit, location.address, location.zcode }}.
     </div>
   {% endif %}
 </div>

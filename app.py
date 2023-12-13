@@ -71,18 +71,27 @@ def locations():
     return render_template('pages/service_locations.html', locations=data)
 
 
-@app.route('/devices')
+@app.route('/locations/<int:lid>')
 @login_required
-def devices():
+def location_devices(lid: int):
     with conn.cursor() as cursor:
         # Create a new record
-        sql = "SELECT * FROM ServiceLocations WHERE cid = %s"
-        affected_rows = cursor.execute(sql, (session["cid"]))
-        data = cursor.fetchall()
+        sql_devices = """
+                SELECT * FROM ServiceLocations SL
+                    JOIN Devices D ON SL.lid = D.lid
+                    JOIN AvailableModels AM ON D.mid = AM.mid
+                WHERE SL.cid = %s AND SL.lid = %s
+              """
+        affected_rows = cursor.execute(sql_devices, (session["cid"], lid))
+        devices = cursor.fetchall()
+
+        sql_location = "SELECT unit, address, zcode FROM ServiceLocations WHERE lid = %s"
+        cursor.execute(sql_location, (lid))
+        location = cursor.fetchone()
 
         conn.commit()
 
-    return render_template('pages/service_locations.html', locations=data)
+    return render_template('pages/devices.html', devices=devices, location=location)
 
 
 @app.route('/login', methods=['GET', 'POST'])
