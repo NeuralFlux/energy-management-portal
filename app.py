@@ -2,6 +2,7 @@
 # Imports
 #----------------------------------------------------------------------------#
 
+from functools import wraps
 from flask import Flask, flash, render_template, request, session, url_for, redirect
 from flask_wtf import CSRFProtect
 import logging
@@ -29,19 +30,59 @@ conn = pymysql.connect(
     cursorclass=pymysql.cursors.DictCursor
 )
 
+
+#----------------------------------------------------------------------------#
+# Utils
+#----------------------------------------------------------------------------#
+
+def login_required(f):
+
+    @wraps(f)
+    def username_dec(*args, **kwargs):
+        if not "cid" in session:
+            flash("Please login to access your dashboard")
+            return redirect('/login')
+        return f(*args, **kwargs)
+
+    return username_dec
+
 #----------------------------------------------------------------------------#
 # Controllers.
 #----------------------------------------------------------------------------#
 
 
 @app.route('/')
+@login_required
 def home():
-    return render_template('pages/placeholder.home.html')
+    return render_template('pages/placeholder.home.html', username=session["username"])
 
 
-@app.route('/about')
-def about():
-    return render_template('pages/placeholder.about.html')
+@app.route('/locations')
+@login_required
+def locations():
+    with conn.cursor() as cursor:
+        # Create a new record
+        sql = "SELECT * FROM ServiceLocations WHERE cid = %s"
+        affected_rows = cursor.execute(sql, (session["cid"]))
+        data = cursor.fetchall()
+
+        conn.commit()
+
+    return render_template('pages/service_locations.html', locations=data)
+
+
+@app.route('/devices')
+@login_required
+def devices():
+    with conn.cursor() as cursor:
+        # Create a new record
+        sql = "SELECT * FROM ServiceLocations WHERE cid = %s"
+        affected_rows = cursor.execute(sql, (session["cid"]))
+        data = cursor.fetchall()
+
+        conn.commit()
+
+    return render_template('pages/service_locations.html', locations=data)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -57,7 +98,9 @@ def login():
 
             # Commit the changes
             if affected_rows > 0:
+                data = cursor.fetchone()
                 session['username'] = form.name.data
+                session['cid'] = data["cid"]
                 conn.commit()
         
         if affected_rows > 0:
