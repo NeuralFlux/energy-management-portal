@@ -63,6 +63,28 @@ def home():
     return render_template('pages/dashboard.html', username=session["username"], logged_in=True)
 
 
+@app.route("/energy_breakdown")
+@login_required
+def energy_breakdown():
+    with conn.cursor() as cursor:
+        sql = """
+                SELECT CONCAT(AM.type, ' ', AM.model_num) AS model_name, SUM(E.value) AS TotalEnergyConsumption
+                FROM
+                    Customers C
+                        JOIN ServiceLocations SL ON C.cid = SL.cid
+                        JOIN Devices D ON SL.lid = D.lid
+                        JOIN AvailableModels AM ON D.mid = AM.mid
+                        JOIN Events E ON D.dev_id = E.dev_id
+                    WHERE C.cid = %s AND E.label = 'energy use'
+                    GROUP BY
+                        AM.mid, AM.type, AM.model_num
+                """
+        affected_rows = cursor.execute(sql, (session["cid"]))
+        data = cursor.fetchall()
+        conn.commit()
+    
+    return render_template('pages/energy_breakdown.html', data=data, logged_in=True)
+
 @app.route("/price_history/<int:zcode>")
 @login_required
 def price_history(zcode):
@@ -261,7 +283,7 @@ def device_consumption(dev_id):
                 JOIN Events E ON D.dev_id = E.dev_id
                 WHERE C.cid = %s AND E.label = 'energy use' AND D.dev_id = %s
                 GROUP BY
-                    SL.lid, D.dev_id, D.dev_name, month_year  
+                    SL.lid, D.dev_id, D.dev_name, month_year
               """
         affected_rows = cursor.execute(sql, ("Y", "m", session["cid"], dev_id))
         data = cursor.fetchall()

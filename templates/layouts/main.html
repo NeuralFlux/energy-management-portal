@@ -54,6 +54,7 @@
           <ul class="nav navbar-nav">
             <li {% if request.endpoint == 'locations' %} class="active" {% endif %}><a href="{{ url_for('locations') }}">My Service Locations</a></li>
             <li {% if request.endpoint == 'devices' %} class="active" {% endif %}><a href="{{ url_for('devices') }}">My Devices</a></li>
+            <li {% if request.endpoint == 'energy_breakdown' %} class="active" {% endif %}><a href="{{ url_for('energy_breakdown') }}">My Energy Breakdown</a></li>
             {# <li {% if request.endpoint == 'about' %} class="active" {% endif %}><a href="{{ url_for('') }}">About</a></li> #}
             {#
               <li class="dropdown">
