@@ -27,6 +27,7 @@ CREATE TABLE `AvailableModels` (
 
 CREATE TABLE `Devices` (
   `dev_id` integer PRIMARY KEY AUTO_INCREMENT,
+  `dev_name` varchar(50) NOT NULL,
   `mid` integer,
   `lid` integer
 );

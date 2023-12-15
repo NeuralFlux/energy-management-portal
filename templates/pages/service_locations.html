@@ -7,13 +7,60 @@
     <h1>Service Locations</h1>
   </div>
 
+  <!-- Form for adding new location -->
+  <form method="POST" action="{{ url_for('locations') }}">
+    {{ form.hidden_tag() }}
+    {{ form.csrf_token }}
+    <div class="row">
+      <!-- Unit Field -->
+      <div class="col-md-6 mb-3">
+        {{ form.unit.label(class="form-label") }}
+        {{ form.unit(class="form-control") }}
+      </div>
+
+      <!-- Address Field -->
+      <div class="col-md-6 mb-3">
+        {{ form.address.label(class="form-label") }}
+        {{ form.address(class="form-control") }}
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Billing Begin Date Field -->
+      <div class="col-md-6 mb-3">
+        {{ form.zcode.label(class="form-label") }}
+        {{ form.zcode(class="form-control") }}
+      </div>
+
+      <div class="col-md-6 mb-3">
+        {{ form.sq_footage.label(class="form-label") }}
+        {{ form.sq_footage(class="form-control") }}
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Billing Begin Date Field -->
+      <div class="col-md-6 mb-3">
+        {{ form.num_bedrooms.label(class="form-label") }}
+        {{ form.num_bedrooms(class="form-control") }}
+      </div>
+
+      <div class="col-md-6 mb-3">
+        {{ form.num_bathrooms.label(class="form-label") }}
+        {{ form.num_bathrooms(class="form-control") }}
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Location</button>
+  </form>
+
+  <hr>
+
   {% if locations %}
     <div class="list-group">
       {% for location in locations %}
         <div class="list-group-item">
           <h5 class="mb-1">Location: {{ location.unit }}, {{ location.address }}</h5>
           <p class="mb-1">Billed since: {{ location.billing_begin_date }}</p>
-          <p class="mb-1"><a href="{{ url_for('location_devices', lid=location.lid) }}">View Devices</a></p>
           <!-- Include other location details here if needed -->
         </div>
       {% endfor %}

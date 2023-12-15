@@ -4,22 +4,53 @@
 
 <div class="container mt-4">
   <div class="page-header">
-    <h1>Devices at {{ location.unit, location.address, location.zcode }}</h1>
+    <h1>Devices</h1>
   </div>
+
+    <!-- Form for adding new device -->
+    <form method="POST" action="{{ url_for('devices') }}">
+      {{ form.hidden_tag() }}
+      {{ form.csrf_token }}
+      <div class="row">
+        <!-- Unit Field -->
+        <div class="col-md-6 mb-3">
+          {{ form.dev_name.label(class="form-label") }}
+          {{ form.dev_name(class="form-control") }}
+        </div>
+  
+        <!-- Address Field -->
+        <div class="col-md-6 mb-3">
+          {{ form.model_id.label(class="form-label") }}
+          {{ form.model_id(class="form-control") }}
+        </div>
+      </div>
+  
+      <div class="row">
+        <!-- Billing Begin Date Field -->
+        <div class="col-md-6 mb-3">
+          {{ form.location_id.label(class="form-label") }}
+          {{ form.location_id(class="form-control") }}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Add Device</button>
+    </form>
+  
+    <hr>
 
   {% if devices %}
     <div class="list-group">
       {% for device in devices %}
         <div class="list-group-item">
-          <h5 class="mb-1">Name: {{ device.D.dev_name }}</h5>
-          <p class="mb-1">Model: {{ device.AM.type }} {{ device.AM.model_num }}</p>
+          <h5 class="mb-1">Name: {{ device.dev_name }}</h5>
+          <p class="mb-1">Model: {{ device.type }} {{ device.model_num }}</p>
+          <p class="mb-1">Location: {{ device.unit, device.address, device.zcode }}</p>
           <!-- Include other location details here if needed -->
         </div>
       {% endfor %}
     </div>
   {% else %}
     <div class="alert alert-info" role="alert">
-      No devices found at {{ location.unit, location.address, location.zcode }}.
+      No devices found.
     </div>
   {% endif %}
 </div>

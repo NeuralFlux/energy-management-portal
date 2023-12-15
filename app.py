@@ -12,6 +12,7 @@ import os
 
 import pymysql
 import hashlib
+from datetime import datetime
 
 #----------------------------------------------------------------------------#
 # App Config.
@@ -54,45 +55,142 @@ def login_required(f):
 @app.route('/')
 @login_required
 def home():
-    return render_template('pages/placeholder.home.html', username=session["username"])
+    return render_template('pages/dashboard.html', username=session["username"], logged_in=True)
 
 
-@app.route('/locations')
+@app.route('/locations', methods=["GET", "POST"])
 @login_required
 def locations():
+    form = ServiceLocationForm()
     with conn.cursor() as cursor:
-        # Create a new record
         sql = "SELECT * FROM ServiceLocations WHERE cid = %s"
         affected_rows = cursor.execute(sql, (session["cid"]))
         data = cursor.fetchall()
 
         conn.commit()
 
-    return render_template('pages/service_locations.html', locations=data)
+    if form.validate_on_submit():
+        with conn.cursor() as cursor:
+            # Create a new record
+            sql = """
+                    INSERT INTO ServiceLocations (cid, unit, address, zcode,
+                    billing_begin_date, sq_footage, num_bedrooms, num_occupants)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                  """
+            sql_vars = (
+                session["cid"], form.unit.data, form.address.data, form.zcode.data,
+                datetime.today().strftime('%Y-%m-%d'), form.sq_footage.data,
+                form.num_bedrooms.data, form.num_bathrooms.data
+            )
+            affected_rows = cursor.execute(sql, sql_vars)
+
+            if affected_rows > 0:
+                flash("Successfully added new location")
+                conn.commit()
+                return redirect("/locations")
+
+    return render_template('pages/service_locations.html', locations=data, form=form, logged_in=True)
 
 
-@app.route('/locations/<int:lid>')
+@app.route('/devices', methods=["GET", "POST"])
 @login_required
-def location_devices(lid: int):
+def devices():
+    form = DeviceForm()
+
     with conn.cursor() as cursor:
         # Create a new record
-        sql_devices = """
-                SELECT * FROM ServiceLocations SL
-                    JOIN Devices D ON SL.lid = D.lid
-                    JOIN AvailableModels AM ON D.mid = AM.mid
-                WHERE SL.cid = %s AND SL.lid = %s
-              """
-        affected_rows = cursor.execute(sql_devices, (session["cid"], lid))
-        devices = cursor.fetchall()
+        sql_models = """SELECT mid, type, model_num FROM AvailableModels"""
+        affected_rows = cursor.execute(sql_models, ())
+        models = cursor.fetchall()
 
-        sql_location = "SELECT unit, address, zcode FROM ServiceLocations WHERE lid = %s"
-        cursor.execute(sql_location, (lid))
-        location = cursor.fetchone()
+        sql_locations = """SELECT SL.lid, SL.unit, SL.address, SL.zcode
+                           FROM ServiceLocations SL
+                                JOIN Customers C ON SL.cid = C.cid
+                            WHERE SL.cid = %s
+                           """
+        affected_rows = cursor.execute(sql_locations, (session["cid"]))
+        locs = cursor.fetchall()
+
+        form.model_id.choices = [
+            (model["mid"], " ".join([model["type"], model["model_num"]])) for model in models
+        ]
+        form.location_id.choices = [
+            (loc["lid"], " ".join([loc["unit"], loc["address"]])) for loc in locs
+        ]
 
         conn.commit()
 
-    return render_template('pages/devices.html', devices=devices, location=location)
+    with conn.cursor() as cursor:
+        # Create a new record
+        sql_devices = """
+                SELECT D.dev_name, AM.type, AM.model_num, SL.unit, SL.address, SL.zcode
+                FROM Customers C
+                    JOIN ServiceLocations SL ON C.cid = SL.cid
+                    JOIN Devices D ON SL.lid = D.lid
+                    JOIN AvailableModels AM ON D.mid = AM.mid
+                WHERE C.cid = %s
+              """
+        affected_rows = cursor.execute(sql_devices, (session["cid"]))
+        devices = cursor.fetchall()
 
+        conn.commit()
+    
+    if form.validate_on_submit():
+        with conn.cursor() as cursor:
+            # Create a new record
+            sql = """
+                    INSERT INTO Devices (dev_name, mid, lid)
+                    VALUES (%s, %s, %s)
+                  """
+            sql_vars = (
+                form.dev_name.data, form.model_id.data, form.location_id.data
+            )
+            affected_rows = cursor.execute(sql, sql_vars)
+
+            if affected_rows > 0:
+                flash("Successfully added new device")
+                conn.commit()
+                return redirect("/devices")
+
+    return render_template('pages/devices.html', form=form,
+                           devices=devices, models=models, logged_in=True)
+
+@app.route('/visualize')
+@login_required
+def visualize():
+    with conn.cursor() as cursor:
+        # Create a new record
+        sql = """
+                WITH CustFilter(cid) AS (
+                    SELECT cid
+                    FROM Customers
+                    WHERE cid = %s
+                )
+
+                SELECT
+                    D.dev_id, D.dev_name
+                    SUM(E.value) AS TotalEnergyConsumption
+                FROM
+                    CustFilter C
+                JOIN ServiceLocations SL ON C.cid = SL.cid
+                JOIN Devices D ON SL.lid = D.lid
+                JOIN Events E ON D.dev_id = E.dev_id
+                WHERE E.label = 'energy use'
+                GROUP BY
+                    D.dev_id, D.dev_name
+                """
+        affected_rows = cursor.execute(sql, (session["cid"]))
+        data = cursor.fetchall()
+    
+    return render_template('pages/vis.html', data=data, logged_in=True)
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    session.pop('username')
+    session.pop('cid')
+    return redirect("/")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -117,7 +215,7 @@ def login():
         else:
             flash("Login failed", category="warning")
 
-    return render_template('forms/login.html', form=form)
+    return render_template('forms/login.html', form=form, logged_in=True)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -138,7 +236,7 @@ def register():
         flash("Successfully created your account, please login", category="info")
         return redirect('/login')
 
-    return render_template('forms/register.html', form=form)
+    return render_template('forms/register.html', form=form, logged_in=True)
 
 
 @app.route('/forgot')
