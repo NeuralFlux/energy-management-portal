@@ -14,6 +14,11 @@ import pymysql
 import hashlib
 from datetime import datetime
 
+# plotting
+import pandas as pd
+from plotting import create_figure_and_get_components
+
+
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -58,9 +63,46 @@ def home():
     return render_template('pages/dashboard.html', username=session["username"], logged_in=True)
 
 
+@app.route("/price_history/<int:zcode>")
+@login_required
+def price_history(zcode):
+    with conn.cursor() as cursor:
+        sql = """
+                SELECT datehour, price FROM PriceHistory
+                WHERE zcode = %s
+                """
+        affected_rows = cursor.execute(sql, (zcode))
+        data = cursor.fetchall()
+        conn.commit()
+    
+    return render_template("pages/price_history.html", data=data, zcode=zcode, logged_in=True)
+
+
 @app.route('/locations', methods=["GET", "POST"])
 @login_required
 def locations():
+    if 'delete_lid' in request.args:
+        try:
+            del_lid = int(request.args["delete_lid"])
+        except:
+            flash("Failed to delete service location", category="warning")
+            return redirect("/locations")
+
+        with conn.cursor() as cursor:
+            sql = """
+                    DELETE FROM ServiceLocations
+                    WHERE cid = %s AND lid = %s
+                    """
+            affected_rows = cursor.execute(sql, (session["cid"], del_lid))
+
+            conn.commit()
+
+        if affected_rows > 0:
+            flash("Successfully deleted service location", category="info")
+        else:
+            flash("Failed to delete service location", category="warning")
+        return redirect("/locations")
+        
     form = ServiceLocationForm()
     with conn.cursor() as cursor:
         sql = "SELECT * FROM ServiceLocations WHERE cid = %s"
@@ -85,7 +127,7 @@ def locations():
             affected_rows = cursor.execute(sql, sql_vars)
 
             if affected_rows > 0:
-                flash("Successfully added new location")
+                flash("Successfully added new location", category="info")
                 conn.commit()
                 return redirect("/locations")
 
@@ -95,10 +137,33 @@ def locations():
 @app.route('/devices', methods=["GET", "POST"])
 @login_required
 def devices():
-    form = DeviceForm()
+    if 'delete_dev_id' in request.args:
+        try:
+            del_dev_id = int(request.args["delete_dev_id"])
+        except:
+            flash("Failed to delete device", category="warning")
+            return redirect("/devices")
 
+        with conn.cursor() as cursor:
+            sql = """
+                    DELETE D FROM Devices D
+                        JOIN ServiceLocations SL ON D.lid = SL.lid
+                        JOIN Customers C ON SL.cid = C.cid
+                    WHERE C.cid = %s AND D.dev_id = %s
+                    """
+            affected_rows = cursor.execute(sql, (session["cid"], del_dev_id))
+
+            conn.commit()
+
+            if affected_rows > 0:
+                flash("Successfully deleted device", category="info")
+            else:
+                flash("Failed to delete device", category="warning")
+        return redirect("/devices")
+
+    form = DeviceForm()
+    # fetch options for the form
     with conn.cursor() as cursor:
-        # Create a new record
         sql_models = """SELECT mid, type, model_num FROM AvailableModels"""
         affected_rows = cursor.execute(sql_models, ())
         models = cursor.fetchall()
@@ -123,7 +188,7 @@ def devices():
     with conn.cursor() as cursor:
         # Create a new record
         sql_devices = """
-                SELECT D.dev_name, AM.type, AM.model_num, SL.unit, SL.address, SL.zcode
+                SELECT D.dev_id, D.dev_name, AM.type, AM.model_num, SL.unit, SL.address, SL.zcode
                 FROM Customers C
                     JOIN ServiceLocations SL ON C.cid = SL.cid
                     JOIN Devices D ON SL.lid = D.lid
@@ -155,34 +220,53 @@ def devices():
     return render_template('pages/devices.html', form=form,
                            devices=devices, models=models, logged_in=True)
 
-@app.route('/visualize')
+
+@app.route('/location_consumption/<int:lid>')
 @login_required
-def visualize():
+def location_consumption(lid):
     with conn.cursor() as cursor:
         # Create a new record
         sql = """
-                WITH CustFilter(cid) AS (
-                    SELECT cid
-                    FROM Customers
-                    WHERE cid = %s
-                )
-
                 SELECT
-                    D.dev_id, D.dev_name
-                    SUM(E.value) AS TotalEnergyConsumption
+                    DATE_FORMAT(E.created_at, CONCAT('%%', %s, '-%%', %s)) AS month_year,
+                    SUM(E.value) AS MonthlyEnergyConsumption
                 FROM
-                    CustFilter C
+                    Customers C
                 JOIN ServiceLocations SL ON C.cid = SL.cid
                 JOIN Devices D ON SL.lid = D.lid
                 JOIN Events E ON D.dev_id = E.dev_id
-                WHERE E.label = 'energy use'
+                WHERE C.cid = %s AND E.label = 'energy use' AND SL.lid = %s
                 GROUP BY
-                    D.dev_id, D.dev_name
-                """
-        affected_rows = cursor.execute(sql, (session["cid"]))
+                    SL.lid, month_year  
+              """
+        affected_rows = cursor.execute(sql, ("Y", "m", session["cid"], lid))
         data = cursor.fetchall()
     
-    return render_template('pages/vis.html', data=data, logged_in=True)
+    return render_template('pages/location_consumption.html', data=data, lid=lid, logged_in=True)
+
+
+@app.route('/device_consumption/<int:dev_id>')
+@login_required
+def device_consumption(dev_id):
+    with conn.cursor() as cursor:
+        # Create a new record
+        sql = """
+                SELECT
+                    DATE_FORMAT(E.created_at, CONCAT('%%', %s, '-%%', %s)) AS month_year,
+                    SUM(E.value) AS MonthlyEnergyConsumption
+                FROM
+                    Customers C
+                JOIN ServiceLocations SL ON C.cid = SL.cid
+                JOIN Devices D ON SL.lid = D.lid
+                JOIN Events E ON D.dev_id = E.dev_id
+                WHERE C.cid = %s AND E.label = 'energy use' AND D.dev_id = %s
+                GROUP BY
+                    SL.lid, D.dev_id, D.dev_name, month_year  
+              """
+        affected_rows = cursor.execute(sql, ("Y", "m", session["cid"], dev_id))
+        data = cursor.fetchall()
+    
+    return render_template('pages/device_consumption.html', data=data, dev_id=dev_id, logged_in=True)
 
 
 @app.route('/logout')

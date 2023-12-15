@@ -61,6 +61,9 @@
         <div class="list-group-item">
           <h5 class="mb-1">Location: {{ location.unit }}, {{ location.address }}</h5>
           <p class="mb-1">Billed since: {{ location.billing_begin_date }}</p>
+          <a href="{{ url_for('location_consumption', lid=location.lid) }}" class="btn btn-info">View usage</a>
+          <a href="{{ url_for('price_history', zcode=location.zcode) }}" class="btn btn-info">Location Price History</a>
+          <a href="{{ url_for('locations', delete_lid=location.lid) }}" class="btn btn-danger">Delete</a>
           <!-- Include other location details here if needed -->
         </div>
       {% endfor %}

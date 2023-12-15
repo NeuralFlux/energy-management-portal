@@ -47,10 +47,10 @@ CREATE TABLE `PriceHistory` (
   PRIMARY KEY (`datehour`, `zcode`)
 );
 
-ALTER TABLE `ServiceLocations` ADD FOREIGN KEY (`cid`) REFERENCES `Customers` (`cid`);
+ALTER TABLE `ServiceLocations` ADD FOREIGN KEY (`cid`) REFERENCES `Customers` (`cid`) ON DELETE CASCADE;
 
-ALTER TABLE `Devices` ADD FOREIGN KEY (`mid`) REFERENCES `AvailableModels` (`mid`);
+ALTER TABLE `Devices` ADD FOREIGN KEY (`mid`) REFERENCES `AvailableModels` (`mid`) ON DELETE CASCADE;
 
-ALTER TABLE `Devices` ADD FOREIGN KEY (`lid`) REFERENCES `ServiceLocations` (`lid`);
+ALTER TABLE `Devices` ADD FOREIGN KEY (`lid`) REFERENCES `ServiceLocations` (`lid`) ON DELETE CASCADE;
 
-ALTER TABLE `Events` ADD FOREIGN KEY (`dev_id`) REFERENCES `Devices` (`dev_id`);
+ALTER TABLE `Events` ADD FOREIGN KEY (`dev_id`) REFERENCES `Devices` (`dev_id`) ON DELETE CASCADE;

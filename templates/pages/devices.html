@@ -44,6 +44,8 @@
           <h5 class="mb-1">Name: {{ device.dev_name }}</h5>
           <p class="mb-1">Model: {{ device.type }} {{ device.model_num }}</p>
           <p class="mb-1">Location: {{ device.unit, device.address, device.zcode }}</p>
+          <a href="{{ url_for('device_consumption', dev_id=device.dev_id) }}" class="btn btn-info">View usage</a>
+          <a href="{{ url_for('devices', delete_dev_id=device.dev_id) }}" class="btn btn-danger">Delete</a>
           <!-- Include other location details here if needed -->
         </div>
       {% endfor %}
